@@ -2,8 +2,8 @@
 #
 # Description:
 # This script uses a webcam to monitor a person's eyes and detect signs of drowsiness.
-# It calculates the Eye Aspect Ratio (EAR) in real-time. If the EAR falls below a
-# certain threshold for a specific duration, it triggers a sound alarm.
+# If the EAR for BOTH eyes falls below a threshold for a sustained period, it triggers
+# a sound alarm. The screen flashing logic has been moved to a separate script.
 #
 # Dependencies:
 # - OpenCV: For video capture and image processing.
@@ -31,7 +31,7 @@ import numpy as np
 # If EAR drops below this value, we consider it a blink.
 EYE_AR_THRESH = 0.25
 # Number of consecutive frames the eye must be below the threshold to trigger the alarm.
-EYE_AR_CONSEC_FRAMES = 10
+EYE_AR_CONSEC_FRAMES = 35
 
 # --- Function to Calculate Eye Aspect Ratio (EAR) ---
 
@@ -139,19 +139,17 @@ while True:
         leftEAR = eye_aspect_ratio(leftEye)
         rightEAR = eye_aspect_ratio(rightEye)
 
-        # Average the eye aspect ratio together for both eyes
+        # Average the eye aspect ratio together for both eyes for visualization
         ear = (leftEAR + rightEAR) / 2.0
 
         # For visualization, draw the contours of the eyes on the frame
-        # FIXED: Removed the unnecessary cv2.UMat() wrapper which caused the error.
         leftEyeHull = cv2.convexHull(np.array(leftEye))
         rightEyeHull = cv2.convexHull(np.array(rightEye))
         cv2.drawContours(frame, [leftEyeHull], -1, (0, 255, 0), 1)
         cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
 
-        # Check to see if the eye aspect ratio is below the blink threshold,
-        # and if so, increment the blink frame counter
-        if ear < EYE_AR_THRESH:
+        # Check if the EAR for *both* eyes is below the threshold.
+        if leftEAR < EYE_AR_THRESH and rightEAR < EYE_AR_THRESH:
             frame_counter += 1
 
             # If the eyes were closed for a sufficient number of frames,
@@ -169,8 +167,7 @@ while True:
                 cv2.putText(frame, "DROWSINESS ALERT!", (10, 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
-        # Otherwise, the eye aspect ratio is not below the blink threshold,
-        # so reset the counter and turn off the alarm
+        # Otherwise, at least one eye is open, so reset the counter and alarm.
         else:
             frame_counter = 0
             if alarm_on:
@@ -178,8 +175,10 @@ while True:
                 if alarm_sound_path:
                     pygame.mixer.music.stop()
 
-        # Display the computed EAR on the frame for debugging/visualization
-        cv2.putText(frame, f"EAR: {ear:.2f}", (300, 30),
+        # Display the computed EARs on the frame for debugging/visualization
+        cv2.putText(frame, f"L_EAR: {leftEAR:.2f}", (300, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        cv2.putText(frame, f"R_EAR: {rightEAR:.2f}", (300, 60),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
     # Show the frame
