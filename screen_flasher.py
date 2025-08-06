@@ -1,15 +1,14 @@
 # Screen Flasher Script
 #
 # Description:
-# This script demonstrates how to create a bright, flashing effect that covers
-# the entire screen. It uses the built-in Tkinter library. This can be integrated
-# into another script to act as a visual alert.
+# This script provides a class to create a fullscreen window that can be
+# shown or hidden on command. It's designed to be controlled from a
+# main application loop, avoiding threading issues.
 #
 # Dependencies:
 # - Tkinter (usually included with Python)
 
 import tkinter as tk
-import time
 
 class ScreenFlasher:
     def __init__(self):
@@ -20,59 +19,44 @@ class ScreenFlasher:
         self.root = tk.Tk()
         # Make the window borderless and always on top.
         self.root.overrideredirect(True)
-        # Get screen dimensions
+        
+        # Get screen dimensions and set geometry
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
-        # Set geometry to cover the whole screen
         self.root.geometry(f"{screen_width}x{screen_height}+0+0")
-        # Make the window stay on top of all other windows
+        
+        # Keep the window on top of all others
         self.root.wm_attributes("-topmost", 1)
+        
+        # Set background to white once
+        self.root.configure(bg='white')
+        
         # Start with the window hidden
         self.root.withdraw()
+        self.is_showing = False
 
-    def flash(self, duration_sec=2, flashes_per_sec=5):
+    def set_flash_state(self, show: bool):
         """
-        Flashes the screen by rapidly showing and hiding the white window.
-
-        Args:
-            duration_sec (int): Total time in seconds to flash the screen.
-            flashes_per_sec (int): How many times to flash on and off per second.
+        Shows or hides the window based on the 'show' boolean argument.
+        This method is intended to be called repeatedly from a main loop.
         """
-        print(f"Flashing screen for {duration_sec} seconds...")
-        flash_interval = 1.0 / (flashes_per_sec * 2) # Time for one on/off cycle
-        end_time = time.time() + duration_sec
-
-        while time.time() < end_time:
-            # Turn screen white
-            self.root.deiconify() # Show the window
-            self.root.configure(bg='white')
-            self.root.update()
-            time.sleep(flash_interval)
-
-            # Turn screen "off" (hide the window)
-            self.root.withdraw() # Hide the window
-            self.root.update()
-            time.sleep(flash_interval)
+        # Show the window if it's supposed to be visible but currently isn't
+        if show and not self.is_showing:
+            self.root.deiconify()
+            self.is_showing = True
+        # Hide the window if it's not supposed to be visible but currently is
+        elif not show and self.is_showing:
+            self.root.withdraw()
+            self.is_showing = False
         
-        print("Flashing finished.")
+        # Process Tkinter events to ensure the window updates correctly
+        # when called from within another loop (like OpenCV's).
+        self.root.update_idletasks()
+        self.root.update()
 
     def close(self):
         """
         Properly closes the Tkinter window.
         """
         self.root.destroy()
-
-# --- Example Usage ---
-if __name__ == "__main__":
-    # This part runs only when you execute this script directly.
-    print("Starting screen flasher demo in 3 seconds...")
-    time.sleep(3)
-
-    flasher = ScreenFlasher()
-    try:
-        # Flash the screen for 3 seconds
-        flasher.flash(duration_sec=3, flashes_per_sec=4)
-    finally:
-        # Ensure the window is closed even if there's an error
-        flasher.close()
 
